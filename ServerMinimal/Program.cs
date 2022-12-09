@@ -4,10 +4,20 @@ using Microsoft.IdentityModel.Tokens;
 using ProtoBuf.Grpc.Server;
 using ServerMinimal;
 using System.IdentityModel.Tokens.Jwt;
+using System.Runtime;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var rsaPrivateKey = Convert.FromBase64String(builder.Configuration["Jwt:RsaPrivateKey"]);
+using RSA rsaWithPrivateKey = RSA.Create();
+rsaWithPrivateKey.ImportRSAPrivateKey(rsaPrivateKey, out _);
+
+var rsaPublicKey = Convert.FromBase64String(builder.Configuration["Jwt:RsaPublicKey"]);
+using RSA rsaWithPublicKey = RSA.Create();
+rsaWithPublicKey.ImportRSAPublicKey(rsaPublicKey, out _);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -30,8 +40,8 @@ builder.Services.AddAuthentication(options =>
     {
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey
-        (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key1"])),
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:HmacKey"])),
+        IssuerSigningKey = new RsaSecurityKey(rsaWithPublicKey),
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateLifetime = false,
@@ -80,9 +90,30 @@ app.MapPost("/security/createToken",
     {
         var issuer = builder.Configuration["Jwt:Issuer"];
         var audience = builder.Configuration["Jwt:Audience"];
-        var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:Key1"]);
-        var stringToken = JWTHelper.GenerateHmacToken(issuer, audience, key, user.UserName);
-        return Results.Ok(stringToken);
+        var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:HmacKey"]);
+        //var stringToken = JWTHelper.GenerateHmacToken(issuer, audience, key, user.UserName);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(new[]
+                {
+                new Claim("Id", Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Email, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+             }),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            Issuer = issuer,
+            Audience = audience,
+            //SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key),SecurityAlgorithms.HmacSha512Signature)
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(rsaWithPrivateKey),SecurityAlgorithms.RsaSha256)
+        };
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        var jwtToken = tokenHandler.WriteToken(token);
+
+        return Results.Ok(jwtToken);
     }
     return Results.Unauthorized();
 });
