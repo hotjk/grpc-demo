@@ -9,8 +9,8 @@ using Google.Protobuf.WellKnownTypes;
 
 var content = new StringContent(
 @"{
-  ""userName"": ""joydip"",
-  ""password"": ""joydip123""
+  ""userName"": ""user"",
+  ""password"": ""password""
 }", Encoding.UTF8, "application/json");
 
 HttpClient client = new HttpClient();
