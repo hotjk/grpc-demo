@@ -10,6 +10,7 @@ using System.Threading.Channels;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using static System.Net.WebRequestMethods;
+using Grpc.Net.Client.Configuration;
 
 var content = new StringContent(
 @"{
@@ -19,7 +20,7 @@ var content = new StringContent(
 
 string token = await Login(content);
 
-GrpcChannel channel = ChannelWithJWT(token);
+GrpcChannel channel = CreateChannel(token);
 
 await Unary(channel);
 
@@ -46,7 +47,7 @@ static async Task<string> Login(StringContent content)
     return token;
 }
 
-static GrpcChannel ChannelWithJWT(string token)
+static GrpcChannel CreateChannel(string token)
 {
     var credentials = CallCredentials.FromInterceptor((context, metadata) =>
     {
@@ -57,9 +58,23 @@ static GrpcChannel ChannelWithJWT(string token)
         return Task.CompletedTask;
     });
 
+    var methodConfig = new MethodConfig
+    {
+        Names = { MethodName.Default },
+        RetryPolicy = new RetryPolicy
+        {
+            MaxAttempts = 3,
+            InitialBackoff = TimeSpan.FromSeconds(0.5),
+            MaxBackoff = TimeSpan.FromSeconds(0.5),
+            BackoffMultiplier = 1,
+            RetryableStatusCodes = { StatusCode.Unavailable, StatusCode.Unknown }
+        }
+    };
+
     var channel = GrpcChannel.ForAddress("https://localhost:7017", new GrpcChannelOptions
     {
-        Credentials = ChannelCredentials.Create(new SslCredentials(), credentials)
+        Credentials = ChannelCredentials.Create(new SslCredentials(), credentials),
+        ServiceConfig = new ServiceConfig { MethodConfigs = { methodConfig } }
     });
     return channel;
 }

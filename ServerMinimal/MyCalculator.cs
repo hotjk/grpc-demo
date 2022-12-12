@@ -13,6 +13,7 @@ namespace ServerMinimal
         {
             var username = context.ServerCallContext.GetHttpContext().User.Identity.Name;
             Console.WriteLine(username);
+            throw new ApplicationException("ApplicationException");
             return new ValueTask<MultiplyResult>(new MultiplyResult { Result = request.X * request.Y });
         }
     }
