@@ -1,3 +1,4 @@
+using Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -13,14 +14,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 var rsaPrivateKey = Convert.FromBase64String(builder.Configuration["Jwt:RsaPrivateKey"]);
 using RSA rsaWithPrivateKey = RSA.Create();
-rsaWithPrivateKey.ImportRSAPrivateKey(rsaPrivateKey, out _);
+//rsaWithPrivateKey.ImportRSAPrivateKey(rsaPrivateKey, out _);
+rsaWithPrivateKey.ImportFromPem(File.ReadAllText("private-key.pem").ToCharArray());
 
 var rsaPublicKey = Convert.FromBase64String(builder.Configuration["Jwt:RsaPublicKey"]);
 using RSA rsaWithPublicKey = RSA.Create();
-rsaWithPublicKey.ImportRSAPublicKey(rsaPublicKey, out _);
+//rsaWithPublicKey.ImportRSAPublicKey(rsaPublicKey, out _);
+rsaWithPublicKey.ImportFromPem(File.ReadAllText("public-key.pem").ToCharArray());
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCodeFirstGrpc(options =>
@@ -50,6 +51,8 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton<ICounter, MyCounter>();
 
 var app = builder.Build();
 
@@ -121,8 +124,11 @@ app.MapPost("/security/createToken",
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGrpcService<MyCalculator>().RequireAuthorization();
+
+//app.MapGrpcService<MyCalculator>().RequireAuthorization();
+app.MapGrpcService<MyCalculator>();
 app.MapGrpcService<MyTimeService>();
+app.MapGrpcService<ICounter>();
 
 app.Run();
 

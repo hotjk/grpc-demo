@@ -1,9 +1,11 @@
 ﻿using Contracts;
 using ProtoBuf.Grpc;
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ServerMinimal
 {
+    [Authorize]
     public class MyTimeService : ITimeService
     {
         public IAsyncEnumerable<TimeResult> SubscribeAsync(CallContext context = default)

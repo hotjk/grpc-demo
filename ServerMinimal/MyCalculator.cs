@@ -6,6 +6,7 @@ using System.Security.Claims;
 
 namespace ServerMinimal
 {
+    [Authorize]
     public class MyCalculator : ICalculator
     {
         ValueTask<MultiplyResult> ICalculator.MultiplyAsync(MultiplyRequest request, CallContext context)
