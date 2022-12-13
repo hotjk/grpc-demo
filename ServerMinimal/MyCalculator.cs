@@ -12,8 +12,9 @@ namespace ServerMinimal
         ValueTask<MultiplyResult> ICalculator.MultiplyAsync(MultiplyRequest request, CallContext context)
         {
             var username = context.ServerCallContext.GetHttpContext().User.Identity.Name;
-            Console.WriteLine(username);
-            throw new ApplicationException("ApplicationException");
+            //Console.WriteLine(username);
+
+            //throw new ApplicationException("ApplicationException");
             return new ValueTask<MultiplyResult>(new MultiplyResult { Result = request.X * request.Y });
         }
     }
